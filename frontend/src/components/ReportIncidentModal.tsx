@@ -145,8 +145,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
           <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 24 }}>
             <button
               type="button"
-              className="tab-btn"
-              style={{ padding: '10px 18px', background: 'var(--surface-container-highest)' }}
+              className="secondary-btn"
               onClick={onClose}
             >
               Cancel
@@ -154,7 +153,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
             <button
               type="submit"
               className="primary-btn"
-              style={{ fontSize: 12, padding: '10px 20px' }}
+              style={{ width: 'auto' }}
             >
               Submit Incident Ticket
             </button>
