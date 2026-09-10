@@ -24,6 +24,7 @@ export interface IncidentItem {
     avatar?: string
   } | null
   slaTimer?: string
+  diagnosisProgress?: number
   attachments?: { name: string; size: string }[]
   comments?: {
     id: string
@@ -185,7 +186,7 @@ export const ReportIncidentPage: React.FC<ReportIncidentPageProps> = ({
                   className="form-input"
                   style={{ paddingLeft: 14, cursor: 'pointer' }}
                   value={category}
-                  onChange={(e) => setCategory(e.target.value as any)}
+                  onChange={(e) => setCategory(e.target.value as IncidentItem['category'])}
                 >
                   <option value="IT Support">IT Support</option>
                   <option value="Facilities">Facilities</option>

@@ -97,7 +97,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                 className="form-input"
                 style={{ paddingLeft: 14, cursor: 'pointer' }}
                 value={category}
-                onChange={(e) => setCategory(e.target.value as any)}
+                onChange={(e) => setCategory(e.target.value as 'IT Support' | 'Facilities' | 'Security')}
               >
                 <option value="IT Support">IT Support</option>
                 <option value="Facilities">Facilities</option>
@@ -110,7 +110,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                 className="form-input"
                 style={{ paddingLeft: 14, cursor: 'pointer' }}
                 value={priority}
-                onChange={(e) => setPriority(e.target.value as any)}
+                onChange={(e) => setPriority(e.target.value as 'Low' | 'Medium' | 'High')}
               >
                 <option value="Low">Low</option>
                 <option value="Medium">Medium</option>

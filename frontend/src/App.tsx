@@ -5,12 +5,15 @@ import {
   AlertTriangle,
   Briefcase,
   BarChart2,
-  Activity,
   Search,
   Plus,
   Bell,
   User as UserIcon,
-  LogOut
+  LogOut,
+  Shield,
+  Wrench,
+  GraduationCap,
+  Users
 } from 'lucide-react'
 import { LoginPage } from './components/LoginPage'
 import { StudentDashboard } from './components/StudentDashboard'
@@ -18,11 +21,133 @@ import { ReportIncidentPage, type IncidentItem } from './components/ReportIncide
 import { MyIncidentsPage } from './components/MyIncidentsPage'
 import { IncidentDetailsPage } from './components/IncidentDetailsPage'
 import { StudentProfilePage } from './components/StudentProfilePage'
+import { TechnicianWorkspacePage } from './components/TechnicianWorkspacePage'
+import { TechnicianDashboard } from './components/TechnicianDashboard'
+import { TechnicianQueuePage } from './components/TechnicianQueuePage'
+import { TechnicianIncidentDetailsPage } from './components/TechnicianIncidentDetailsPage'
+import { AdminDashboard } from './components/AdminDashboard'
+import { AdminStaffPage } from './components/AdminStaffPage'
+import { AdminAnalyticsPage } from './components/AdminAnalyticsPage'
 import { auth, onAuthStateChanged, signOut, type FirebaseUser } from './firebase'
 
-export type ViewType = 'dashboard' | 'incidents' | 'incident-details' | 'report-incident' | 'profile' | 'workspace' | 'analytics' | 'status'
+export type ViewType =
+  | 'dashboard'
+  | 'incidents'
+  | 'incident-details'
+  | 'report-incident'
+  | 'profile'
+  | 'workspace'
+  | 'analytics'
+  | 'status'
+  | 'tech-dashboard'
+  | 'tech-workspace'
+  | 'tech-queue'
+  | 'tech-incident-details'
+  | 'admin-dashboard'
+  | 'admin-staff'
+  | 'admin-analytics'
 
 const INITIAL_DATASET: IncidentItem[] = [
+  {
+    id: 'INC-8492',
+    title: 'Main DB Connection Timeout in US-East',
+    category: 'IT Support',
+    priority: 'Critical',
+    status: 'Open',
+    location: 'US-East-1 Data Center',
+    description: 'Database connection pool max capacity reached causing downstream microservice connection timeout spikes.',
+    date: 'Oct 24, 10:05',
+    reporterName: 'Sandul',
+    assignedTechnician: {
+      name: 'Alex Rivera',
+      role: 'Sr. Infrastructure Engineer'
+    },
+    slaTimer: '0h 15m remaining',
+    diagnosisProgress: 20,
+    attachments: [{ name: 'db_latency_telemetry.log', size: '2.4 MB' }],
+    comments: [
+      {
+        id: 'c1',
+        author: 'System Dispatch',
+        role: 'System',
+        text: 'Automated telemetry flagged high DB pool waiting queue > 95%.',
+        timestamp: 'Oct 24, 10:05'
+      }
+    ]
+  },
+  {
+    id: 'INC-8490',
+    title: 'API Gateway Latency Spikes Detected',
+    category: 'Network & Wi-Fi',
+    priority: 'High',
+    status: 'Open',
+    location: 'Global Edge Network',
+    description: 'Ingress Envoy proxy reporting 450ms P99 latency overhead across EU/US pop clusters.',
+    date: 'Oct 24, 09:50',
+    reporterName: 'Sandul',
+    assignedTechnician: {
+      name: 'Alex Rivera',
+      role: 'Sr. Infrastructure Engineer'
+    },
+    slaTimer: '1h 42m remaining',
+    diagnosisProgress: 10,
+    attachments: [],
+    comments: []
+  },
+  {
+    id: 'INC-8488',
+    title: 'User Authentication failing for SSO users',
+    category: 'IT Support',
+    priority: 'Medium',
+    status: 'In Progress',
+    location: 'Auth Service v2',
+    description: 'OIDC token validation failing intermittently on OAuth callback redirect endpoint.',
+    date: 'Oct 24, 08:30',
+    reporterName: 'Alex',
+    assignedTechnician: {
+      name: 'Marcus Vance',
+      role: 'Identity & Auth Specialist'
+    },
+    slaTimer: '3h 10m remaining',
+    diagnosisProgress: 65,
+    attachments: [{ name: 'oidc_trace.json', size: '512 KB' }],
+    comments: [
+      {
+        id: 'c1',
+        author: 'Marcus Vance',
+        role: 'Technician',
+        text: 'Examining public key rotation cache on auth realm gateway.',
+        timestamp: 'Oct 24, 09:12'
+      }
+    ]
+  },
+  {
+    id: 'INC-8475',
+    title: 'Redis Cache Eviction Spikes',
+    category: 'IT Support',
+    priority: 'Low',
+    status: 'Resolved',
+    location: 'Caching Layer Cluster',
+    description: 'LRU memory threshold bumped to 16GB. Cache hit ratio restored to 99.4%.',
+    date: 'Oct 23, 18:00',
+    reporterName: 'System',
+    assignedTechnician: {
+      name: 'Alex Rivera',
+      role: 'Sr. Infrastructure Engineer'
+    },
+    slaTimer: 'Closed 2h ago',
+    diagnosisProgress: 100,
+    attachments: [],
+    comments: [
+      {
+        id: 'c1',
+        author: 'Alex Rivera',
+        role: 'Technician',
+        text: 'Cluster node memory scaled. Resolved.',
+        timestamp: 'Oct 24, 07:30'
+      }
+    ]
+  },
   {
     id: 'INC-1042',
     title: 'Projector malfunction in Room 302',
@@ -37,7 +162,8 @@ const INITIAL_DATASET: IncidentItem[] = [
       name: 'Alex Rivera',
       role: 'Sr. AV & Hardware Specialist'
     },
-    slaTimer: 'Est. Resolution: 1h 30m',
+    slaTimer: '1h 30m',
+    diagnosisProgress: 15,
     attachments: [{ name: 'projector_error_log.txt', size: '1.2 MB' }],
     comments: [
       {
@@ -46,13 +172,6 @@ const INITIAL_DATASET: IncidentItem[] = [
         role: 'System',
         text: 'Ticket created and routed to IT Hardware Support queue.',
         timestamp: 'Oct 24, 09:15'
-      },
-      {
-        id: 'c2',
-        author: 'Alex Rivera',
-        role: 'Technician',
-        text: 'Dispatched technician to inspect HDMI splitter cable and ballast unit in Room 302.',
-        timestamp: 'Oct 24, 09:40'
       }
     ]
   },
@@ -70,24 +189,10 @@ const INITIAL_DATASET: IncidentItem[] = [
       name: 'Marcus Vance',
       role: 'Facilities Plumbing Lead'
     },
-    slaTimer: 'Est. Resolution: 2h 15m',
+    slaTimer: '2h 15m',
+    diagnosisProgress: 50,
     attachments: [{ name: 'pipe_photo.png', size: '3.4 MB' }],
-    comments: [
-      {
-        id: 'c1',
-        author: 'System Dispatch',
-        role: 'System',
-        text: 'Facilities work order generated.',
-        timestamp: 'Oct 23, 14:30'
-      },
-      {
-        id: 'c2',
-        author: 'Marcus Vance',
-        role: 'Technician',
-        text: 'Shut off isolation valve #2. Replacement gasket on order from main warehouse.',
-        timestamp: 'Oct 23, 15:10'
-      }
-    ]
+    comments: []
   },
   {
     id: 'INC-1035',
@@ -100,49 +205,17 @@ const INITIAL_DATASET: IncidentItem[] = [
     date: 'Oct 22, 11:05',
     reporterName: 'Sandul',
     assignedTechnician: null,
-    slaTimer: 'Est. Resolution: 4h 00m',
+    slaTimer: '4h 00m',
+    diagnosisProgress: 0,
     attachments: [],
-    comments: [
-      {
-        id: 'c1',
-        author: 'System Dispatch',
-        role: 'System',
-        text: 'Network telemetry flagged packet loss on AP-LIB-09.',
-        timestamp: 'Oct 22, 11:05'
-      }
-    ]
-  },
-  {
-    id: 'INC-1012',
-    title: 'Broken chair in Lecture Hall B',
-    category: 'Facilities',
-    priority: 'Low',
-    status: 'Resolved',
-    location: 'Main Auditorium - Lecture Hall B',
-    description: 'Seat #42 backrest hinge sheared off. Replaced with ergonomic spare.',
-    date: 'Oct 18, 16:20',
-    reporterName: 'Sandul',
-    assignedTechnician: {
-      name: 'David Chen',
-      role: 'Furniture & Campus Crew'
-    },
-    slaTimer: 'Resolved on Oct 19, 10:15',
-    attachments: [],
-    comments: [
-      {
-        id: 'c1',
-        author: 'David Chen',
-        role: 'Technician',
-        text: 'Seat hinge replaced and safety bolt tightened. Ticket closed.',
-        timestamp: 'Oct 19, 10:15'
-      }
-    ]
+    comments: []
   }
 ]
 
 function App() {
-  const [currentView, setCurrentView] = useState<ViewType | 'login'>('dashboard')
-  const [selectedTicketId, setSelectedTicketId] = useState<string | undefined>('INC-1042')
+  const [currentView, setCurrentView] = useState<ViewType | 'login'>('login')
+  const [selectedTicketId, setSelectedTicketId] = useState<string | undefined>('INC-8492')
+  const [userRole, setUserRole] = useState<'Student' | 'Technician' | 'Admin'>('Student')
   const [user, setUser] = useState('Sandul')
   const [, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -156,13 +229,10 @@ function App() {
         setFirebaseUser(authUser)
         const nameFromEmail = authUser.email ? authUser.email.split('@')[0] : 'Sandul'
         setUser(nameFromEmail)
-        if (currentView === 'login') {
-          setCurrentView('dashboard')
-        }
       }
     })
     return () => unsubscribe()
-  }, [currentView])
+  }, [])
 
   const handleNavigate = (view: ViewType | 'login', ticketId?: string) => {
     if (ticketId) {
@@ -171,11 +241,55 @@ function App() {
     setCurrentView(view)
   }
 
+  const handleLoginSuccess = (userName: string, profile: 'Student' | 'Technician' | 'Admin') => {
+    setUser(userName || 'User')
+    setUserRole(profile)
+    if (profile === 'Technician') {
+      setCurrentView('tech-workspace')
+    } else if (profile === 'Admin') {
+      setCurrentView('admin-dashboard')
+    } else {
+      setCurrentView('dashboard')
+    }
+  }
+
   const handleAddIncident = (newIncident: IncidentItem) => {
     setIncidents((prev) => [newIncident, ...prev])
   }
 
-  const handleAddComment = (ticketId: string, commentText: string) => {
+  const handleUpdateStatus = (ticketId: string, newStatus: IncidentItem['status']) => {
+    setIncidents((prev) =>
+      prev.map((item) => {
+        if (item.id === ticketId) {
+          return {
+            ...item,
+            status: newStatus,
+            diagnosisProgress: newStatus === 'In Progress' ? 65 : newStatus === 'Resolved' ? 100 : item.diagnosisProgress
+          }
+        }
+        return item
+      })
+    )
+  }
+
+  const handleClaimTicket = (ticketId: string) => {
+    setIncidents((prev) =>
+      prev.map((item) => {
+        if (item.id === ticketId) {
+          return {
+            ...item,
+            assignedTechnician: {
+              name: user || 'Alex Rivera',
+              role: 'Sr. Infrastructure Specialist'
+            }
+          }
+        }
+        return item
+      })
+    )
+  }
+
+  const handleAddComment = (ticketId: string, commentText: string, isInternal?: boolean) => {
     const now = new Date()
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     const month = monthNames[now.getMonth()]
@@ -190,8 +304,8 @@ function App() {
           const newComment = {
             id: `c_${Date.now()}`,
             author: user,
-            role: 'Student',
-            text: commentText,
+            role: isInternal ? 'Technician Internal' : userRole,
+            text: isInternal ? `[INTERNAL NOTE]: ${commentText}` : commentText,
             timestamp
           }
           return {
@@ -221,10 +335,7 @@ function App() {
   if (currentView === 'login') {
     return (
       <LoginPage
-        onLoginSuccess={(userName) => {
-          setUser(userName || 'Sandul')
-          setCurrentView('dashboard')
-        }}
+        onLoginSuccess={handleLoginSuccess}
       />
     )
   }
@@ -233,58 +344,115 @@ function App() {
     <div className="dash-layout">
       {/* Persistent Left Sidebar Navigation */}
       <aside className="dash-sidebar">
-        <div className="sidebar-logo" onClick={() => handleNavigate('dashboard')} style={{ cursor: 'pointer' }}>
+        <div
+          className="sidebar-logo"
+          onClick={() => {
+            if (userRole === 'Admin') handleNavigate('admin-dashboard')
+            else if (userRole === 'Technician') handleNavigate('tech-workspace')
+            else handleNavigate('dashboard')
+          }}
+          style={{ cursor: 'pointer' }}
+        >
           <img src={logoImg} alt="CampusOps" className="sidebar-logo-img" />
           <span className="sidebar-brand-name">
             Campus<span className="brand-highlight">Ops</span>
           </span>
         </div>
 
+        {/* Navigation strictly rendered per Role */}
         <nav className="sidebar-nav">
-          <button
-            type="button"
-            className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
-            onClick={() => handleNavigate('dashboard')}
-          >
-            <LayoutGrid size={18} />
-            <span>DASHBOARD</span>
-          </button>
+          {userRole === 'Student' && (
+            <>
+              <button
+                type="button"
+                className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
+                onClick={() => handleNavigate('dashboard')}
+              >
+                <LayoutGrid size={18} />
+                <span>DASHBOARD</span>
+              </button>
 
-          <button
-            type="button"
-            className={`nav-item ${currentView === 'incidents' || currentView === 'incident-details' ? 'active' : ''}`}
-            onClick={() => handleNavigate('incidents')}
-          >
-            <AlertTriangle size={18} />
-            <span>INCIDENTS</span>
-          </button>
+              <button
+                type="button"
+                className={`nav-item ${currentView === 'incidents' || currentView === 'incident-details' ? 'active' : ''}`}
+                onClick={() => handleNavigate('incidents')}
+              >
+                <AlertTriangle size={18} />
+                <span>MY INCIDENTS</span>
+              </button>
 
-          <button
-            type="button"
-            className={`nav-item ${currentView === 'workspace' ? 'active' : ''}`}
-            onClick={() => handleNavigate('incidents')}
-          >
-            <Briefcase size={18} />
-            <span>WORKSPACE</span>
-          </button>
+              <button
+                type="button"
+                className={`nav-item ${currentView === 'report-incident' ? 'active' : ''}`}
+                onClick={() => handleNavigate('report-incident')}
+              >
+                <Plus size={18} />
+                <span>REPORT INCIDENT</span>
+              </button>
+            </>
+          )}
 
-          <button
-            type="button"
-            className={`nav-item ${currentView === 'analytics' ? 'active' : ''}`}
-            onClick={() => handleNavigate('dashboard')}
-          >
-            <BarChart2 size={18} />
-            <span>ANALYTICS</span>
-          </button>
+          {userRole === 'Technician' && (
+            <>
+              <button
+                type="button"
+                className={`nav-item ${currentView === 'tech-workspace' || currentView === 'tech-incident-details' ? 'active' : ''}`}
+                onClick={() => handleNavigate('tech-workspace')}
+              >
+                <Briefcase size={18} />
+                <span>KANBAN WORKSPACE</span>
+              </button>
 
-          <button
-            type="button"
-            className={`nav-item ${currentView === 'status' ? 'active' : ''}`}
-            onClick={() => handleNavigate('dashboard')}
-          >
-            <Activity size={18} />
-            <span>STATUS</span>
-          </button>
+              <button
+                type="button"
+                className={`nav-item ${currentView === 'tech-dashboard' ? 'active' : ''}`}
+                onClick={() => handleNavigate('tech-dashboard')}
+              >
+                <LayoutGrid size={18} />
+                <span>OPS DASHBOARD</span>
+              </button>
+
+              <button
+                type="button"
+                className={`nav-item ${currentView === 'tech-queue' ? 'active' : ''}`}
+                onClick={() => handleNavigate('tech-queue')}
+              >
+                <AlertTriangle size={18} />
+                <span>INCIDENT QUEUE</span>
+              </button>
+            </>
+          )}
+
+          {userRole === 'Admin' && (
+            <>
+              <button
+                type="button"
+                className={`nav-item ${currentView === 'admin-dashboard' ? 'active' : ''}`}
+                onClick={() => handleNavigate('admin-dashboard')}
+              >
+                <Shield size={18} />
+                <span>COMMAND CENTER</span>
+              </button>
+
+              <button
+                type="button"
+                className={`nav-item ${currentView === 'admin-staff' ? 'active' : ''}`}
+                onClick={() => handleNavigate('admin-staff')}
+              >
+                <Users size={18} />
+                <span>STAFF DIRECTORY</span>
+              </button>
+
+              <button
+                type="button"
+                className={`nav-item ${currentView === 'admin-analytics' ? 'active' : ''}`}
+                onClick={() => handleNavigate('admin-analytics')}
+              >
+                <BarChart2 size={18} />
+                <span>TELEMETRY</span>
+              </button>
+            </>
+          )}
         </nav>
 
         <div className="sidebar-footer">
@@ -304,21 +472,60 @@ function App() {
             <input
               type="text"
               className="search-input"
-              placeholder="Search commands or assets..."
+              placeholder="Search assets, services, tickets..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
           <div className="topbar-actions">
-            <button
-              type="button"
-              className="ghost-btn"
-              onClick={() => handleNavigate('report-incident')}
+            {/* Read-only Role Badge */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 14px',
+                borderRadius: '9999px',
+                fontSize: '12px',
+                fontWeight: 600,
+                fontFamily: 'var(--font-mono)',
+                background:
+                  userRole === 'Admin'
+                    ? 'rgba(168, 85, 247, 0.15)'
+                    : userRole === 'Technician'
+                    ? 'rgba(99, 102, 241, 0.15)'
+                    : 'rgba(59, 130, 246, 0.15)',
+                color:
+                  userRole === 'Admin'
+                    ? '#C084FC'
+                    : userRole === 'Technician'
+                    ? '#818CF8'
+                    : '#60A5FA',
+                border:
+                  userRole === 'Admin'
+                    ? '1px solid rgba(168, 85, 247, 0.3)'
+                    : userRole === 'Technician'
+                    ? '1px solid rgba(99, 102, 241, 0.3)'
+                    : '1px solid rgba(59, 130, 246, 0.3)'
+              }}
             >
-              <Plus size={14} />
-              <span>+ REPORT INCIDENT</span>
-            </button>
+              {userRole === 'Admin' && <Shield size={14} />}
+              {userRole === 'Technician' && <Wrench size={14} />}
+              {userRole === 'Student' && <GraduationCap size={14} />}
+              <span>{userRole.toUpperCase()} PORTAL</span>
+            </div>
+
+            {userRole === 'Student' && (
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => handleNavigate('report-incident')}
+              >
+                <Plus size={14} />
+                <span>+ REPORT INCIDENT</span>
+              </button>
+            )}
 
             <button type="button" className="icon-btn" title="Notifications">
               <Bell size={18} />
@@ -328,52 +535,117 @@ function App() {
             <button
               type="button"
               className="user-avatar-btn"
-              onClick={() => handleNavigate('profile')}
-              title={`${user} Profile Settings`}
+              onClick={() => {
+                if (userRole === 'Student') handleNavigate('profile')
+              }}
+              title={`${user} Settings`}
             >
               <UserIcon size={18} />
             </button>
           </div>
         </header>
 
-        {/* Dynamic Page View Body */}
-        {currentView === 'dashboard' && (
-          <StudentDashboard
-            userName={user}
-            incidents={incidents}
-            onNavigate={handleNavigate}
-          />
+        {/* Dynamic Page View Body - Rendered strictly per Portal */}
+        {userRole === 'Student' && (
+          <>
+            {currentView === 'dashboard' && (
+              <StudentDashboard
+                userName={user}
+                incidents={incidents}
+                onNavigate={handleNavigate}
+              />
+            )}
+
+            {currentView === 'incidents' && (
+              <MyIncidentsPage
+                incidents={incidents}
+                onNavigate={handleNavigate}
+              />
+            )}
+
+            {currentView === 'incident-details' && (
+              <IncidentDetailsPage
+                incident={selectedIncident}
+                onNavigate={handleNavigate}
+                onAddComment={handleAddComment}
+              />
+            )}
+
+            {currentView === 'report-incident' && (
+              <ReportIncidentPage
+                onAddIncident={handleAddIncident}
+                onNavigate={handleNavigate}
+              />
+            )}
+
+            {currentView === 'profile' && (
+              <StudentProfilePage
+                userName={user}
+                incidents={incidents}
+                onLogout={handleLogout}
+                onNavigate={handleNavigate}
+              />
+            )}
+          </>
         )}
 
-        {currentView === 'incidents' && (
-          <MyIncidentsPage
-            incidents={incidents}
-            onNavigate={handleNavigate}
-          />
+        {userRole === 'Technician' && (
+          <>
+            {currentView === 'tech-workspace' && (
+              <TechnicianWorkspacePage
+                incidents={incidents}
+                onNavigate={handleNavigate}
+                onUpdateStatus={handleUpdateStatus}
+              />
+            )}
+
+            {currentView === 'tech-dashboard' && (
+              <TechnicianDashboard
+                userName={user}
+                incidents={incidents}
+                onNavigate={handleNavigate}
+                onUpdateStatus={handleUpdateStatus}
+              />
+            )}
+
+            {currentView === 'tech-queue' && (
+              <TechnicianQueuePage
+                incidents={incidents}
+                onNavigate={handleNavigate}
+                onUpdateStatus={handleUpdateStatus}
+                onClaimTicket={handleClaimTicket}
+              />
+            )}
+
+            {currentView === 'tech-incident-details' && (
+              <TechnicianIncidentDetailsPage
+                incident={selectedIncident}
+                onNavigate={handleNavigate}
+                onUpdateStatus={handleUpdateStatus}
+                onAddComment={handleAddComment}
+              />
+            )}
+          </>
         )}
 
-        {currentView === 'incident-details' && (
-          <IncidentDetailsPage
-            incident={selectedIncident}
-            onNavigate={handleNavigate}
-            onAddComment={handleAddComment}
-          />
-        )}
+        {userRole === 'Admin' && (
+          <>
+            {currentView === 'admin-dashboard' && (
+              <AdminDashboard
+                userName={user}
+                incidents={incidents}
+                onNavigate={handleNavigate}
+              />
+            )}
 
-        {currentView === 'report-incident' && (
-          <ReportIncidentPage
-            onAddIncident={handleAddIncident}
-            onNavigate={handleNavigate}
-          />
-        )}
+            {currentView === 'admin-staff' && (
+              <AdminStaffPage />
+            )}
 
-        {currentView === 'profile' && (
-          <StudentProfilePage
-            userName={user}
-            incidents={incidents}
-            onLogout={handleLogout}
-            onNavigate={handleNavigate}
-          />
+            {currentView === 'admin-analytics' && (
+              <AdminAnalyticsPage />
+            )}
+          </>
         )}
       </main>
     </div>
