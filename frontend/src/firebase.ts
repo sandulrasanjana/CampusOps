@@ -1,49 +1,60 @@
-import { initializeApp, getApps, getApp } from 'firebase/app'
-import {
-  getAuth,
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
-  signOut,
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithPopup,
-  type User as FirebaseUser
-} from 'firebase/auth'
+  type User 
+} from "firebase/auth";
 
-// Firebase Configuration using Vite Environment Variables with safe fallbacks
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCampusOpsDemoKeyForTesting12345",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "campusops-auth.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "campusops-auth",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "campusops-auth.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "83912049102",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:83912049102:web:91023a8b7c6d5e4f"
-}
+  apiKey: "AIzaSyDqTRVviOvTPzf1-76-ig5AR4s5fuXxHeA",
+  authDomain: "campusops-26ed0.firebaseapp.com",
+  projectId: "campusops-26ed0",
+  storageBucket: "campusops-26ed0.firebasestorage.app",
+  messagingSenderId: "294155487081",
+  appId: "1:294155487081:web:d78b29b827e098c89b1ff8",
+  measurementId: "G-VJ20QYMSWD"
+};
 
-// Initialize Firebase App singleton
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
-export const auth = getAuth(app)
-export const googleProvider = new GoogleAuthProvider()
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account'
-})
+});
 
-/**
- * Format user_id or email into valid email format
- */
-export const formatAuthEmail = (input: string): string => {
-  const trimmed = input.trim()
-  if (trimmed.includes('@')) {
-    return trimmed
+export const signInWithGoogle = async (): Promise<User | null> => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (error) {
+    console.error("Firebase Google Sign-In Error:", error);
+    throw error;
   }
-  // If user inputs ID like "INC-1042" or "sandul", convert to email format
-  return `${trimmed.toLowerCase().replace(/[^a-z0-9_-]/g, '')}@campusops.edu`
-}
+};
 
-/**
- * Firebase Authentication Helper Functions
- */
+export const logOut = async (): Promise<void> => {
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.error("Firebase Sign-Out Error:", error);
+    throw error;
+  }
+};
+
+export const formatAuthEmail = (input: string): string => {
+  const trimmed = input.trim();
+  if (trimmed.includes('@')) {
+    return trimmed;
+  }
+  return `${trimmed.toLowerCase().replace(/[^a-z0-9_-]/g, '')}@campusops.edu`;
+};
+
 export {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -51,5 +62,6 @@ export {
   signOut,
   onAuthStateChanged,
   signInWithPopup
-}
-export type { FirebaseUser }
+};
+
+export type { User as FirebaseUser };

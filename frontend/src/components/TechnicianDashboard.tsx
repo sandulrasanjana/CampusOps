@@ -26,8 +26,8 @@ export const TechnicianDashboard: React.FC<TechnicianDashboardProps> = ({
   onNavigate,
   onUpdateStatus
 }) => {
-  const openCount = incidents.filter((i) => i.status === 'Open').length
-  const progressCount = incidents.filter((i) => i.status === 'In Progress').length
+  const openCount = incidents.filter((i) => i.status === 'Open' || i.status === 'Reported').length
+  const progressCount = incidents.filter((i) => i.status === 'In Progress' || i.status === 'Assigned').length
   const resolvedCount = incidents.filter((i) => i.status === 'Resolved' || i.status === 'Closed').length
   const criticalTickets = incidents.filter((i) => i.priority === 'High' || i.priority === 'Critical')
   const unassignedTickets = incidents.filter((i) => !i.assignedTechnician)

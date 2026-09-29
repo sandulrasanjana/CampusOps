@@ -16,11 +16,10 @@ import {
 } from 'lucide-react'
 import {
   auth,
-  googleProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
-  signInWithPopup,
+  signInWithGoogle,
   formatAuthEmail
 } from '../firebase'
 
@@ -49,9 +48,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [showRecoverModal, setShowRecoverModal] = useState(false)
   const [recoveryEmail, setRecoveryEmail] = useState('')
   const [recoverySent, setRecoverySent] = useState(false)
-  const [showGoogleModal, setShowGoogleModal] = useState(false)
-  const [showCustomAccountInput, setShowCustomAccountInput] = useState(false)
-  const [customAccountEmail, setCustomAccountEmail] = useState('')
 
   // Simulated DB latency jitter for dynamic feel
   const [dbLatency, setDbLatency] = useState(12)
@@ -159,60 +155,45 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     }
   }
 
-  // Handle Google SSO Login
+  // Handle Google SSO Login via Real Firebase Google Authentication
   const handleGoogleSignIn = async () => {
     setAuthStatus(null)
     setIsSubmitting(true)
     setSubmitStep('Connecting to Google SSO authentication provider...')
 
     try {
-      const result = await signInWithPopup(auth, googleProvider)
-      const googleUser = result.user
-      const displayName = googleUser.displayName || googleUser.email?.split('@')[0] || 'Sandul'
+      const user = await signInWithGoogle()
+      if (user) {
+        const displayName = user.displayName || user.email?.split('@')[0] || 'Sandul'
+        setSubmitStep(`Authenticated via Google. Mapping to ${profile} workspace...`)
 
-      setSubmitStep(`Authenticated via Google. Mapping to ${profile} workspace...`)
-
-      setTimeout(() => {
+        setTimeout(() => {
+          setIsSubmitting(false)
+          setSubmitStep('')
+          setAuthStatus({
+            type: 'success',
+            message: `Signed in with Google as ${displayName}. Redirecting...`
+          })
+          if (onLoginSuccess) {
+            onLoginSuccess(displayName, profile)
+          }
+        }, 800)
+      } else {
         setIsSubmitting(false)
         setSubmitStep('')
-        setAuthStatus({
-          type: 'success',
-          message: `Signed in with Google as ${displayName}. Redirecting...`
-        })
-        if (onLoginSuccess) {
-          onLoginSuccess(displayName, profile)
-        }
-      }, 1000)
+      }
     } catch (error: unknown) {
       setIsSubmitting(false)
       setSubmitStep('')
-      const errObj = error as { code?: string }
+      const errObj = error as { code?: string; message?: string }
       if (errObj?.code === 'auth/popup-closed-by-user' || errObj?.code === 'auth/cancelled-popup-request') {
-        setAuthStatus({ type: 'error', message: 'Google Sign In was cancelled.' })
+        setAuthStatus({ type: 'error', message: 'Google Sign In popup was closed before completion.' })
+      } else if (errObj?.code === 'auth/popup-blocked') {
+        setAuthStatus({ type: 'error', message: 'Google Sign In popup was blocked by the browser. Please allow popups.' })
       } else {
-        // Dev environment / popup error: Open Google Account Chooser modal so user explicitly picks account
-        setShowGoogleModal(true)
+        setAuthStatus({ type: 'error', message: errObj?.message || 'Google Sign In failed. Please try again.' })
       }
     }
-  }
-
-  const handleSelectGoogleAccount = (name: string, email: string) => {
-    setShowGoogleModal(false)
-    setShowCustomAccountInput(false)
-    setIsSubmitting(true)
-    setSubmitStep(`Authenticating Google Account [${email}]...`)
-
-    setTimeout(() => {
-      setIsSubmitting(false)
-      setSubmitStep('')
-      setAuthStatus({
-        type: 'success',
-        message: `Signed in with Google as ${name}. Redirecting...`
-      })
-      if (onLoginSuccess) {
-        onLoginSuccess(name, profile)
-      }
-    }, 1000)
   }
 
   // Handle Password Reset
@@ -606,127 +587,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 </div>
               </form>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Google Account Selector Modal */}
-      {showGoogleModal && (
-        <div className="modal-overlay" onClick={() => setShowGoogleModal(false)}>
-          <div className="modal-card google-account-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="google-modal-header">
-              <div className="google-brand-row">
-                <svg width="22" height="22" viewBox="0 0 24 24">
-                  <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z" />
-                  <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z" />
-                  <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12 0 14.5s.7 4.8 1.9 7.2l3.7-2.9z" />
-                  <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z" />
-                </svg>
-                <span style={{ fontWeight: 600, fontSize: 15, color: '#f1f5f9' }}>Sign in with Google</span>
-              </div>
-              <button
-                type="button"
-                className="input-action-btn"
-                onClick={() => setShowGoogleModal(false)}
-                title="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="google-modal-body">
-              <h3 className="google-title">Choose an account</h3>
-              <p className="google-subtitle">to continue to <strong style={{ color: 'var(--primary)' }}>CampusOps</strong></p>
-
-              <div className="google-account-list">
-                <button
-                  type="button"
-                  className="google-account-item"
-                  onClick={() => handleSelectGoogleAccount('Sandul Rasanjana', 'sandul.rasanjana@gmail.com')}
-                >
-                  <div className="account-avatar avatar-blue">S</div>
-                  <div className="account-info">
-                    <span className="account-name">Sandul Rasanjana</span>
-                    <span className="account-email">sandul.rasanjana@gmail.com</span>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  className="google-account-item"
-                  onClick={() => handleSelectGoogleAccount('Sandul (CampusOps)', 'sandul.dev@campusops.edu')}
-                >
-                  <div className="account-avatar avatar-purple">S</div>
-                  <div className="account-info">
-                    <span className="account-name">Sandul (CampusOps Admin)</span>
-                    <span className="account-email">sandul.dev@campusops.edu</span>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  className="google-account-item"
-                  onClick={() => handleSelectGoogleAccount('Alex Rivera', 'alex.rivera@campusops.edu')}
-                >
-                  <div className="account-avatar avatar-green">A</div>
-                  <div className="account-info">
-                    <span className="account-name">Alex Rivera (Infrastructure Lead)</span>
-                    <span className="account-email">alex.rivera@campusops.edu</span>
-                  </div>
-                </button>
-
-                {!showCustomAccountInput ? (
-                  <button
-                    type="button"
-                    className="google-account-item custom-account-trigger"
-                    onClick={() => setShowCustomAccountInput(true)}
-                  >
-                    <div className="account-avatar avatar-gray">+</div>
-                    <div className="account-info">
-                      <span className="account-name" style={{ color: 'var(--primary)', fontWeight: 500 }}>Use another account</span>
-                    </div>
-                  </button>
-                ) : (
-                  <div className="custom-account-form">
-                    <input
-                      type="email"
-                      className="form-input"
-                      placeholder="Enter Google email address"
-                      value={customAccountEmail}
-                      onChange={(e) => setCustomAccountEmail(e.target.value)}
-                      style={{ paddingLeft: 12 }}
-                      autoFocus
-                    />
-                    <div className="custom-account-actions">
-                      <button
-                        type="button"
-                        className="tab-btn"
-                        style={{ padding: '6px 12px', fontSize: 13 }}
-                        onClick={() => setShowCustomAccountInput(false)}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        className="submit-btn"
-                        style={{ width: 'auto', padding: '6px 16px', fontSize: 13 }}
-                        disabled={!customAccountEmail.trim()}
-                        onClick={() => {
-                          const name = customAccountEmail.split('@')[0] || 'User'
-                          handleSelectGoogleAccount(name, customAccountEmail.trim())
-                        }}
-                      >
-                        Continue
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="google-modal-footer">
-              To continue, Google will share your name, email address, and language preference with CampusOps.
-            </div>
           </div>
         </div>
       )}

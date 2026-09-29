@@ -12,20 +12,26 @@ import { type IncidentItem } from './ReportIncidentPage'
 interface StudentDashboardProps {
   userName?: string
   incidents: IncidentItem[]
+  loading?: boolean
+  error?: string | null
   onNavigate: (view: 'dashboard' | 'incidents' | 'incident-details' | 'report-incident' | 'profile', ticketId?: string) => void
+  onRefresh?: () => void
 }
 
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   userName = 'Sandul',
   incidents,
-  onNavigate
+  loading = false,
+  error = null,
+  onNavigate,
+  onRefresh
 }) => {
   const [categoryFilter, setCategoryFilter] = useState<'All' | 'Facilities' | 'IT Support' | 'Security'>('All')
 
-  // Dynamic status counters
+  // Dynamic status counters derived directly from live DB incidents
   const openCount = useMemo(() => incidents.filter((i) => i.status === 'Open' || i.status === 'Reported').length, [incidents])
   const inProgressCount = useMemo(() => incidents.filter((i) => i.status === 'In Progress' || i.status === 'Assigned').length, [incidents])
-  const resolvedCount = useMemo(() => incidents.filter((i) => i.status === 'Resolved' || i.status === 'Closed').length + 6, [incidents])
+  const resolvedCount = useMemo(() => incidents.filter((i) => i.status === 'Resolved' || i.status === 'Closed').length, [incidents])
 
   // Filtered incidents
   const filteredIncidents = useMemo(() => {
@@ -129,7 +135,19 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               </tr>
             </thead>
             <tbody>
-              {filteredIncidents.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                    Fetching live incidents from database...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: '#F87171' }}>
+                    {error} {onRefresh && <button type="button" className="ghost-btn" style={{ marginLeft: 12 }} onClick={onRefresh}>Retry</button>}
+                  </td>
+                </tr>
+              ) : filteredIncidents.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
                     No incidents found matching current category filter.

@@ -8,6 +8,8 @@ import {
   CheckCircle2
 } from 'lucide-react'
 
+import { createIncident } from '../services/api'
+
 export interface IncidentItem {
   id: string
   title: string
@@ -53,6 +55,8 @@ export const ReportIncidentPage: React.FC<ReportIncidentPageProps> = ({
   const [attachedFiles, setAttachedFiles] = useState<{ name: string; size: string }[]>([])
   const [isDragOver, setIsDragOver] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const handleFileChange = (files: FileList | null) => {
     if (!files) return
@@ -69,50 +73,44 @@ export const ReportIncidentPage: React.FC<ReportIncidentPageProps> = ({
     setAttachedFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
 
-    const now = new Date()
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    const month = monthNames[now.getMonth()]
-    const day = now.getDate()
-    const hours = String(now.getHours()).padStart(2, '0')
-    const mins = String(now.getMinutes()).padStart(2, '0')
-    const formattedDate = `${month} ${day}, ${hours}:${mins}`
+    try {
+      setIsSubmitting(true)
+      setSubmitError(null)
 
-    const newId = `INC-${Math.floor(1000 + Math.random() * 9000)}`
+      const newIncident = await createIncident({
+        title: title.trim(),
+        description: description.trim() || 'No additional description provided.',
+        category,
+        location: location.trim() || 'Main Campus',
+        priority
+      })
 
-    const newIncident: IncidentItem = {
-      id: newId,
-      title: title.trim(),
-      category,
-      priority,
-      status: 'Open',
-      location: location.trim() || 'Main Campus',
-      description: description.trim() || 'No additional description provided.',
-      date: formattedDate,
-      reporterName: 'Sandul',
-      assignedTechnician: null,
-      slaTimer: 'Est. Resolution: 4h 00m',
-      attachments: attachedFiles,
-      comments: [
-        {
-          id: 'c1',
-          author: 'System Dispatch',
-          role: 'System',
-          text: `Ticket ${newId} logged successfully. Assigned to tier-1 queue for triage.`,
-          timestamp: formattedDate
-        }
-      ]
+      if (attachedFiles.length > 0) {
+        newIncident.attachments = attachedFiles
+      }
+
+      onAddIncident(newIncident)
+      setSubmitSuccess(true)
+
+      // Reset fields on success
+      setTitle('')
+      setLocation('')
+      setDescription('')
+      setAttachedFiles([])
+
+      setTimeout(() => {
+        onNavigate('incidents')
+      }, 1200)
+    } catch (err: any) {
+      console.error('Submit incident error:', err)
+      setSubmitError(err.message || 'Failed to report incident. Please try again.')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    onAddIncident(newIncident)
-    setSubmitSuccess(true)
-
-    setTimeout(() => {
-      onNavigate('incidents')
-    }, 1200)
   }
 
   return (
@@ -154,6 +152,13 @@ export const ReportIncidentPage: React.FC<ReportIncidentPageProps> = ({
           <div className="status-banner success" style={{ marginBottom: 24 }}>
             <CheckCircle2 size={18} />
             <span>Incident reported successfully! Redirecting to My Incidents list...</span>
+          </div>
+        )}
+
+        {submitError && (
+          <div className="status-banner error" style={{ marginBottom: 24 }}>
+            <X size={18} />
+            <span>{submitError}</span>
           </div>
         )}
 
@@ -352,9 +357,9 @@ export const ReportIncidentPage: React.FC<ReportIncidentPageProps> = ({
                 type="submit"
                 className="primary-btn"
                 style={{ width: 'auto', padding: '12px 28px' }}
-                disabled={submitSuccess}
+                disabled={submitSuccess || isSubmitting}
               >
-                Submit Incident & Route
+                {isSubmitting ? 'Submitting Ticket...' : 'Submit Incident & Route'}
               </button>
             </div>
           </form>

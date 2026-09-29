@@ -37,8 +37,8 @@ export const TechnicianWorkspacePage: React.FC<TechnicianWorkspacePageProps> = (
   })
 
   // Separate into columns
-  const assignedColumn = filteredIncidents.filter((i) => i.status === 'Open')
-  const inProgressColumn = filteredIncidents.filter((i) => i.status === 'In Progress')
+  const assignedColumn = filteredIncidents.filter((i) => i.status === 'Open' || i.status === 'Reported')
+  const inProgressColumn = filteredIncidents.filter((i) => i.status === 'In Progress' || i.status === 'Assigned')
   const resolvedColumn = filteredIncidents.filter((i) => i.status === 'Resolved' || i.status === 'Closed')
 
   // Action handlers

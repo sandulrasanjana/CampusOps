@@ -31,10 +31,11 @@ app.get('/api/health', async (req, res) => {
 });
 
 // 2. Incidents Endpoints
-// GET /api/incidents - List all incidents
+// GET /api/incidents - List all incidents (with optional query filters: status, category, priority)
 app.get('/api/incidents', async (req, res) => {
   try {
-    const query = `
+    const { status, category, priority } = req.query;
+    let baseQuery = `
       SELECT 
         i.id,
         i.incident_number,
@@ -46,6 +47,8 @@ app.get('/api/incidents', async (req, res) => {
         i.status,
         i.created_at,
         i.updated_at,
+        i.reported_by,
+        i.assigned_to,
         u_rep.name AS reporter_name,
         u_rep.email AS reporter_email,
         u_tech.name AS assigned_technician_name,
@@ -53,9 +56,31 @@ app.get('/api/incidents', async (req, res) => {
       FROM incidents i
       LEFT JOIN users u_rep ON i.reported_by = u_rep.id
       LEFT JOIN users u_tech ON i.assigned_to = u_tech.id
-      ORDER BY i.created_at DESC
     `;
-    const result = await db.query(query);
+
+    const conditions = [];
+    const values = [];
+
+    if (status) {
+      values.push(status);
+      conditions.push(`i.status = $${values.length}`);
+    }
+    if (category) {
+      values.push(category);
+      conditions.push(`i.category = $${values.length}`);
+    }
+    if (priority) {
+      values.push(priority);
+      conditions.push(`i.priority = $${values.length}`);
+    }
+
+    if (conditions.length > 0) {
+      baseQuery += ` WHERE ` + conditions.join(' AND ');
+    }
+
+    baseQuery += ` ORDER BY i.created_at DESC`;
+
+    const result = await db.query(baseQuery, values);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching incidents:', error.message);
@@ -109,20 +134,23 @@ app.get('/api/incidents/:id', async (req, res) => {
 // POST /api/incidents - Create a new incident
 app.post('/api/incidents', async (req, res) => {
   const { title, description, category, location, priority, reported_by } = req.body;
-  if (!title || !description || !category || !location || !reported_by) {
+  if (!title || !description || !category || !location) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
+  const reporterId = reported_by || 1;
+
   try {
     const countResult = await db.query('SELECT COUNT(*) FROM incidents');
-    const newNumber = `INC-${1000 + parseInt(countResult.rows[0].count, 10) + 1}`;
+    const totalCount = countResult.rows[0].count ? parseInt(countResult.rows[0].count, 10) : countResult.rows.length;
+    const newNumber = `INC-${1000 + totalCount + 1}`;
 
     const query = `
       INSERT INTO incidents (incident_number, title, description, category, location, priority, reported_by)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
-    const values = [newNumber, title, description, category, location, priority || 'MEDIUM', reported_by];
+    const values = [newNumber, title, description, category, location, priority || 'MEDIUM', reporterId];
     const result = await db.query(query, values);
 
     res.status(201).json(result.rows[0]);
@@ -132,19 +160,21 @@ app.post('/api/incidents', async (req, res) => {
   }
 });
 
-// PATCH /api/incidents/:id - Update incident status or assignment
-app.patch('/api/incidents/:id', async (req, res) => {
-  const { id } = req.params;
-  const { status, assigned_to, changed_by } = req.body;
+// Helper function for updating incident status or assignment
+async function updateIncident(idParam, bodyData, res) {
+  const { status, assigned_to, changed_by } = bodyData;
 
   try {
-    // Get existing incident
-    const existingResult = await db.query('SELECT * FROM incidents WHERE id = $1', [id]);
+    const isNumeric = /^\d+$/.test(idParam);
+    const findQuery = `SELECT * FROM incidents WHERE ${isNumeric ? 'id = $1' : 'incident_number = $1'}`;
+    const existingResult = await db.query(findQuery, [idParam]);
+
     if (existingResult.rows.length === 0) {
       return res.status(404).json({ error: 'Incident not found' });
     }
 
     const currentIncident = existingResult.rows[0];
+    const numericId = currentIncident.id;
     const newStatus = status || currentIncident.status;
     const newAssignedTo = assigned_to !== undefined ? assigned_to : currentIncident.assigned_to;
 
@@ -154,20 +184,65 @@ app.patch('/api/incidents/:id', async (req, res) => {
       WHERE id = $3
       RETURNING *
     `;
-    const updateResult = await db.query(updateQuery, [newStatus, newAssignedTo, id]);
+    const updateResult = await db.query(updateQuery, [newStatus, newAssignedTo, numericId]);
 
     // Log history if status changed
     if (status && status !== currentIncident.status) {
       await db.query(
         'INSERT INTO incident_history (incident_id, old_status, new_status, changed_by) VALUES ($1, $2, $3, $4)',
-        [id, currentIncident.status, status, changed_by || null]
+        [numericId, currentIncident.status, status, changed_by || null]
       );
     }
 
     res.json(updateResult.rows[0]);
   } catch (error) {
-    console.error(`Error updating incident ${id}:`, error.message);
+    console.error(`Error updating incident ${idParam}:`, error.message);
     res.status(500).json({ error: 'Failed to update incident', details: error.message });
+  }
+}
+
+// PATCH /api/incidents/:id - Update incident
+app.patch('/api/incidents/:id', async (req, res) => {
+  await updateIncident(req.params.id, req.body, res);
+});
+
+// PATCH /api/incidents/:id/status - Alias for status update
+app.patch('/api/incidents/:id/status', async (req, res) => {
+  await updateIncident(req.params.id, req.body, res);
+});
+
+// POST /api/incidents/:id/comments - Add comment to an incident
+app.post('/api/incidents/:id/comments', async (req, res) => {
+  const { id } = req.params;
+  const { user_id, comment } = req.body;
+
+  if (!comment || !comment.trim()) {
+    return res.status(400).json({ error: 'Comment text is required' });
+  }
+
+  try {
+    const isNumeric = /^\d+$/.test(id);
+    const findQuery = `SELECT id FROM incidents WHERE ${isNumeric ? 'id = $1' : 'incident_number = $1'}`;
+    const existingResult = await db.query(findQuery, [id]);
+
+    if (existingResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Incident not found' });
+    }
+
+    const numericId = existingResult.rows[0].id;
+    const authorId = user_id || 1;
+
+    const insertQuery = `
+      INSERT INTO incident_comments (incident_id, user_id, comment)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `;
+    const result = await db.query(insertQuery, [numericId, authorId, comment.trim()]);
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error(`Error adding comment to incident ${id}:`, error.message);
+    res.status(500).json({ error: 'Failed to add comment', details: error.message });
   }
 });
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { X, PlusCircle } from 'lucide-react'
+import { createIncident } from '../services/api'
 
 export interface IncidentItem {
   id: string
@@ -13,7 +14,7 @@ export interface IncidentItem {
 interface ReportIncidentModalProps {
   isOpen: boolean
   onClose: () => void
-  onAddIncident: (newIncident: IncidentItem) => void
+  onAddIncident: (newIncident: any) => void
 }
 
 export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
@@ -26,37 +27,38 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   const [priority, setPriority] = useState<'High' | 'Medium' | 'Low'>('Medium')
   const [location, setLocation] = useState('')
   const [description, setDescription] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [modalError, setModalError] = useState<string | null>(null)
 
   if (!isOpen) return null
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
 
-    const now = new Date()
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    const month = monthNames[now.getMonth()]
-    const day = now.getDate()
-    const hours = String(now.getHours()).padStart(2, '0')
-    const mins = String(now.getMinutes()).padStart(2, '0')
-    const formattedDate = `${month} ${day}, ${hours}:${mins}`
+    try {
+      setIsSubmitting(true)
+      setModalError(null)
 
-    const newId = `INC-${Math.floor(1000 + Math.random() * 9000)}`
+      const created = await createIncident({
+        title: title.trim(),
+        description: description.trim() || 'Reported via Quick Modal',
+        category,
+        location: location.trim() || 'Main Campus',
+        priority
+      })
 
-    const newIncident: IncidentItem = {
-      id: newId,
-      title: title.trim() + (location ? ` (${location.trim()})` : ''),
-      category,
-      priority,
-      status: 'Open',
-      date: formattedDate
+      onAddIncident(created)
+      setTitle('')
+      setLocation('')
+      setDescription('')
+      onClose()
+    } catch (err: any) {
+      console.error('Modal create incident error:', err)
+      setModalError(err.message || 'Failed to submit incident ticket')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    onAddIncident(newIncident)
-    onClose()
-    setTitle('')
-    setLocation('')
-    setDescription('')
   }
 
   return (
@@ -75,6 +77,12 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
             <X size={18} />
           </button>
         </div>
+
+        {modalError && (
+          <div className="status-banner error" style={{ marginBottom: 16 }}>
+            <span>{modalError}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -147,6 +155,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
               type="button"
               className="secondary-btn"
               onClick={onClose}
+              disabled={isSubmitting}
             >
               Cancel
             </button>
@@ -154,8 +163,9 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
               type="submit"
               className="primary-btn"
               style={{ width: 'auto' }}
+              disabled={isSubmitting}
             >
-              Submit Incident Ticket
+              {isSubmitting ? 'Submitting...' : 'Submit Incident Ticket'}
             </button>
           </div>
         </form>
