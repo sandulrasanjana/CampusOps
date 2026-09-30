@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import type { IncidentItem } from './ReportIncidentPage'
 import type { ViewType } from '../App'
+import { isTerminalStatus, isSlaWarningOrBreach } from '../utils/slaUtils'
 
 interface TechnicianIncidentDetailsPageProps {
   incident: IncidentItem | null
@@ -66,7 +67,8 @@ export const TechnicianIncidentDetailsPage: React.FC<TechnicianIncidentDetailsPa
     setShowResolveModal(false)
   }
 
-  const isCritical = incident.priority === 'High' || incident.priority === 'Critical'
+  const isTerminal = isTerminalStatus(incident.status)
+  const isCritical = isSlaWarningOrBreach(incident)
 
   return (
     <div className="dash-body">
@@ -306,7 +308,7 @@ export const TechnicianIncidentDetailsPage: React.FC<TechnicianIncidentDetailsPa
           {/* SLA Tracker Card */}
           <div className="incidents-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-              <Clock size={18} className={isCritical ? 'text-red-400' : 'text-blue-400'} />
+              <Clock size={18} className={isTerminal ? 'text-green-400' : isCritical ? 'text-red-400' : 'text-blue-400'} />
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-heading)' }}>
                 SLA Compliance Tracker
               </h3>
@@ -326,14 +328,14 @@ export const TechnicianIncidentDetailsPage: React.FC<TechnicianIncidentDetailsPa
               <div style={{ background: 'var(--bg-base)', padding: '14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Resolution Target SLA</span>
-                  <span style={{ color: isCritical ? '#F87171' : '#FBBF24', fontWeight: 600 }}>
-                    {incident.slaTimer || '1h 30m remaining'}
+                  <span style={{ color: isTerminal ? '#34D399' : isCritical ? '#F87171' : '#FBBF24', fontWeight: 600 }}>
+                    {isTerminal ? `Met (${incident.status})` : (incident.slaTimer || '1h 30m remaining')}
                   </span>
                 </div>
                 <div className="progress-bar-track">
                   <div
                     className="progress-bar-fill"
-                    style={{ width: '75%', background: isCritical ? '#EF4444' : '#F59E0B' }}
+                    style={{ width: '100%', background: isTerminal ? '#10B981' : isCritical ? '#EF4444' : '#F59E0B' }}
                   ></div>
                 </div>
               </div>

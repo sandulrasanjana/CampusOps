@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import type { IncidentItem } from './ReportIncidentPage'
 import type { ViewType } from '../App'
+import { isSlaWarningOrBreach } from '../utils/slaUtils'
 
 interface TechnicianQueuePageProps {
   incidents: IncidentItem[]
@@ -28,7 +29,7 @@ export const TechnicianQueuePage: React.FC<TechnicianQueuePageProps> = ({
     // Filter pill logic
     if (activeFilter === 'unassigned' && item.assignedTechnician) return false
     if (activeFilter === 'mine' && !item.assignedTechnician) return false
-    if (activeFilter === 'critical' && item.priority !== 'High' && item.priority !== 'Critical') return false
+    if (activeFilter === 'critical' && !isSlaWarningOrBreach(item)) return false
     if (activeFilter === 'in-progress' && item.status !== 'In Progress') return false
     if (activeFilter === 'resolved' && item.status !== 'Resolved' && item.status !== 'Closed') return false
 
@@ -96,7 +97,7 @@ export const TechnicianQueuePage: React.FC<TechnicianQueuePageProps> = ({
               className={`filter-tab ${activeFilter === 'critical' ? 'active' : ''}`}
               onClick={() => setActiveFilter('critical')}
             >
-              Critical ({incidents.filter((i) => i.priority === 'High' || i.priority === 'Critical').length})
+              Critical ({incidents.filter((i) => isSlaWarningOrBreach(i)).length})
             </button>
             <button
               type="button"

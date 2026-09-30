@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import type { IncidentItem } from './ReportIncidentPage'
 import type { ViewType } from '../App'
+import { getActiveSlaBreaches, isActiveIncident } from '../utils/slaUtils'
 
 interface TechnicianDashboardProps {
   userName: string
@@ -26,11 +27,12 @@ export const TechnicianDashboard: React.FC<TechnicianDashboardProps> = ({
   onNavigate,
   onUpdateStatus
 }) => {
-  const openCount = incidents.filter((i) => i.status === 'Open' || i.status === 'Reported').length
-  const progressCount = incidents.filter((i) => i.status === 'In Progress' || i.status === 'Assigned').length
+  const openCount = incidents.filter((i) => isActiveIncident(i) && (i.status === 'Open' || i.status === 'Reported')).length
+  const progressCount = incidents.filter((i) => isActiveIncident(i) && (i.status === 'In Progress' || i.status === 'Assigned')).length
   const resolvedCount = incidents.filter((i) => i.status === 'Resolved' || i.status === 'Closed').length
-  const criticalTickets = incidents.filter((i) => i.priority === 'High' || i.priority === 'Critical')
-  const unassignedTickets = incidents.filter((i) => !i.assignedTechnician)
+  const slaBreachedTickets = getActiveSlaBreaches(incidents)
+  const warningCount = slaBreachedTickets.length
+  const unassignedTickets = incidents.filter((i) => isActiveIncident(i) && !i.assignedTechnician)
 
   return (
     <div className="dash-body">
@@ -38,7 +40,12 @@ export const TechnicianDashboard: React.FC<TechnicianDashboardProps> = ({
       <div className="greeting-section">
         <div className="greeting-text">
           <h1>Technician Operations Command</h1>
-          <p>Welcome back, {userName}. 1 SLA warning requires immediate intervention.</p>
+          <p>
+            Welcome back, {userName}.{' '}
+            {warningCount > 0
+              ? `${warningCount} SLA warning${warningCount > 1 ? 's require' : ' requires'} immediate intervention.`
+              : 'All SLA targets on schedule.'}
+          </p>
         </div>
 
         <button
@@ -52,8 +59,8 @@ export const TechnicianDashboard: React.FC<TechnicianDashboardProps> = ({
         </button>
       </div>
 
-      {/* Critical SLA Warning Banner */}
-      {criticalTickets.length > 0 && (
+      {/* Critical SLA Warning Banner - Only renders if there are active SLA breaches */}
+      {slaBreachedTickets.length > 0 && (
         <div
           className="status-banner error"
           style={{
@@ -67,10 +74,10 @@ export const TechnicianDashboard: React.FC<TechnicianDashboardProps> = ({
             <ShieldAlert size={22} className="text-red-400" />
             <div>
               <div style={{ fontWeight: 700, fontSize: '15px', color: '#F87171' }}>
-                CRITICAL SLA BREACH WARNING: {criticalTickets[0].id} - {criticalTickets[0].title}
+                CRITICAL SLA BREACH WARNING: {slaBreachedTickets[0].id} - {slaBreachedTickets[0].title}
               </div>
               <div style={{ fontSize: '13px', opacity: 0.9 }}>
-                Location: {criticalTickets[0].location} | Target SLA response time: Target 30 mins
+                Location: {slaBreachedTickets[0].location} | Target SLA response time: Target 30 mins
               </div>
             </div>
           </div>
@@ -84,7 +91,7 @@ export const TechnicianDashboard: React.FC<TechnicianDashboardProps> = ({
               padding: '8px 16px',
               fontSize: '13px'
             }}
-            onClick={() => onNavigate('tech-incident-details', criticalTickets[0].id)}
+            onClick={() => onNavigate('tech-incident-details', slaBreachedTickets[0].id)}
           >
             Investigate Now
           </button>

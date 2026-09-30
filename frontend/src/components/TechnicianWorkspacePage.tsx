@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import type { IncidentItem } from './ReportIncidentPage'
 import type { ViewType } from '../App'
+import { isActiveIncident, isSlaWarningOrBreach } from '../utils/slaUtils'
 
 interface TechnicianWorkspacePageProps {
   incidents: IncidentItem[]
@@ -27,10 +28,10 @@ export const TechnicianWorkspacePage: React.FC<TechnicianWorkspacePageProps> = (
   // Filter dataset based on activeTab
   const filteredIncidents = incidents.filter((item) => {
     if (activeTab === 'critical') {
-      return item.priority === 'High' || item.priority === 'Critical'
+      return isSlaWarningOrBreach(item)
     }
     if (activeTab === 'unassigned') {
-      return !item.assignedTechnician
+      return isActiveIncident(item) && !item.assignedTechnician
     }
     // Default assigned to technician / workspace view
     return true
@@ -75,7 +76,7 @@ export const TechnicianWorkspacePage: React.FC<TechnicianWorkspacePageProps> = (
               onClick={() => setActiveTab('unassigned')}
             >
               <span>UNASSIGNED QUEUE</span>
-              <span className="tab-badge">{incidents.filter((i) => !i.assignedTechnician).length}</span>
+              <span className="tab-badge">{incidents.filter((i) => isActiveIncident(i) && !i.assignedTechnician).length}</span>
             </button>
 
             <button
@@ -85,7 +86,7 @@ export const TechnicianWorkspacePage: React.FC<TechnicianWorkspacePageProps> = (
             >
               <span>CRITICAL PRIORITY</span>
               <span className="tab-badge">
-                {incidents.filter((i) => i.priority === 'High' || i.priority === 'Critical').length}
+                {incidents.filter((i) => isSlaWarningOrBreach(i)).length}
               </span>
             </button>
           </div>

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import type { IncidentItem } from './ReportIncidentPage'
 import type { ViewType } from '../App'
+import { isSlaWarningOrBreach } from '../utils/slaUtils'
 
 interface AdminDashboardProps {
   userName: string
@@ -34,7 +35,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     [incidents]
   )
   const criticalCount = useMemo(
-    () => incidents.filter((i) => i.priority === 'High' || i.priority === 'Critical').length,
+    () => incidents.filter((i) => isSlaWarningOrBreach(i)).length,
     [incidents]
   )
 
