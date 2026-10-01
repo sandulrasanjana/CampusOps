@@ -19,13 +19,15 @@ interface TechnicianDashboardProps {
   incidents: IncidentItem[]
   onNavigate: (view: ViewType | 'login', ticketId?: string) => void
   onUpdateStatus: (ticketId: string, newStatus: IncidentItem['status']) => void
+  onOpenProfile?: () => void
 }
 
 export const TechnicianDashboard: React.FC<TechnicianDashboardProps> = ({
   userName,
   incidents,
   onNavigate,
-  onUpdateStatus
+  onUpdateStatus,
+  onOpenProfile
 }) => {
   const openCount = incidents.filter((i) => isActiveIncident(i) && (i.status === 'Open' || i.status === 'Reported')).length
   const progressCount = incidents.filter((i) => isActiveIncident(i) && (i.status === 'In Progress' || i.status === 'Assigned')).length
@@ -48,15 +50,30 @@ export const TechnicianDashboard: React.FC<TechnicianDashboardProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          className="primary-btn"
-          style={{ width: 'auto', padding: '10px 20px' }}
-          onClick={() => onNavigate('tech-workspace')}
-        >
-          <Zap size={16} />
-          <span>OPEN KANBAN WORKSPACE</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {onOpenProfile && (
+            <button
+              type="button"
+              className="secondary-btn"
+              style={{ width: 'auto', padding: '10px 16px' }}
+              onClick={onOpenProfile}
+              title="View Technician Profile & Account Details"
+            >
+              <UserCheck size={16} />
+              <span>My Profile</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="primary-btn"
+            style={{ width: 'auto', padding: '10px 20px' }}
+            onClick={() => onNavigate('tech-workspace')}
+          >
+            <Zap size={16} />
+            <span>OPEN KANBAN WORKSPACE</span>
+          </button>
+        </div>
       </div>
 
       {/* Critical SLA Warning Banner - Only renders if there are active SLA breaches */}

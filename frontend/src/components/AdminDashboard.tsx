@@ -5,7 +5,8 @@ import {
   Clock,
   CheckCircle2,
   BarChart2,
-  ArrowRight
+  ArrowRight,
+  User as UserIcon
 } from 'lucide-react'
 import type { IncidentItem } from './ReportIncidentPage'
 import type { ViewType } from '../App'
@@ -15,12 +16,14 @@ interface AdminDashboardProps {
   userName: string
   incidents: IncidentItem[]
   onNavigate: (view: ViewType | 'login', ticketId?: string) => void
+  onOpenProfile?: () => void
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   userName,
   incidents,
-  onNavigate
+  onNavigate,
+  onOpenProfile
 }) => {
   const openCount = useMemo(
     () => incidents.filter((i) => i.status === 'Open' || i.status === 'Reported').length,
@@ -63,6 +66,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {onOpenProfile && (
+            <button
+              type="button"
+              className="secondary-btn"
+              style={{ width: 'auto', padding: '6px 14px', fontSize: '13px' }}
+              onClick={onOpenProfile}
+              title="View Administrator Profile & Account Details"
+            >
+              <UserIcon size={16} />
+              <span>Admin Profile</span>
+            </button>
+          )}
+
           <span
             style={{
               display: 'flex',

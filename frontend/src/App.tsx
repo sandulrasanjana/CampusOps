@@ -28,6 +28,7 @@ import { TechnicianIncidentDetailsPage } from './components/TechnicianIncidentDe
 import { AdminDashboard } from './components/AdminDashboard'
 import { AdminStaffPage } from './components/AdminStaffPage'
 import { AdminAnalyticsPage } from './components/AdminAnalyticsPage'
+import { UserProfileModal } from './components/UserProfileModal'
 import { auth, onAuthStateChanged, signOut, type FirebaseUser } from './firebase'
 import {
   getIncidents,
@@ -58,7 +59,8 @@ function App() {
   const [selectedTicketId, setSelectedTicketId] = useState<string | undefined>(undefined)
   const [userRole, setUserRole] = useState<'Student' | 'Technician' | 'Admin'>('Student')
   const [user, setUser] = useState('Sandul')
-  const [, setFirebaseUser] = useState<FirebaseUser | null>(null)
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   // Incident state loaded from API
@@ -411,6 +413,7 @@ function App() {
               className="user-avatar-btn"
               onClick={() => {
                 if (userRole === 'Student') handleNavigate('profile')
+                else setIsProfileModalOpen(true)
               }}
               title={`${user} Settings`}
             >
@@ -491,6 +494,7 @@ function App() {
                 incidents={incidents}
                 onNavigate={handleNavigate}
                 onUpdateStatus={handleUpdateStatus}
+                onOpenProfile={() => setIsProfileModalOpen(true)}
               />
             )}
 
@@ -521,6 +525,7 @@ function App() {
                 userName={user}
                 incidents={incidents}
                 onNavigate={handleNavigate}
+                onOpenProfile={() => setIsProfileModalOpen(true)}
               />
             )}
 
@@ -533,6 +538,16 @@ function App() {
             )}
           </>
         )}
+
+        {/* Shared Reusable User Profile Modal for Technician & Admin */}
+        <UserProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          userRole={userRole}
+          userName={user}
+          firebaseUser={firebaseUser}
+          onLogout={handleLogout}
+        />
       </main>
     </div>
   )
