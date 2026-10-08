@@ -9,9 +9,7 @@ import {
   Clock,
   LogOut,
   Building,
-  CheckCircle2,
-  ShieldCheck,
-  User as UserIcon
+  ShieldCheck
 } from 'lucide-react'
 import { logOut, type FirebaseUser } from '../firebase'
 
