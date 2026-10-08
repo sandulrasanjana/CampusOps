@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const db = require('./db');
+const { verifyToken } = require('./src/middleware/authMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -10,7 +11,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// 1. Health Check Endpoint
+// 1. Health Check Endpoint (Public)
 app.get('/api/health', async (req, res) => {
   try {
     const result = await db.query('SELECT NOW() as current_time');
@@ -29,6 +30,11 @@ app.get('/api/health', async (req, res) => {
     });
   }
 });
+
+// Protect sensitive API routes with Firebase ID token verification
+app.use('/api/incidents', verifyToken);
+app.use('/api/users', verifyToken);
+app.use('/api/analytics', verifyToken);
 
 // 2. Incidents Endpoints
 // GET /api/incidents - List all incidents (with optional query filters: status, category, priority)

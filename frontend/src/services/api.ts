@@ -1,4 +1,5 @@
 import type { IncidentItem } from '../components/ReportIncidentPage'
+import { auth } from '../firebase'
 
 const API_BASE_URL = 'http://localhost:5000/api'
 
@@ -95,6 +96,50 @@ export function transformBackendIncident(raw: any): IncidentItem {
 }
 
 /**
+ * Retrieves the current Firebase user ID token and returns standard request headers.
+ */
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  }
+
+  try {
+    const user = auth.currentUser
+    if (user) {
+      const token = await user.getIdToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to retrieve Firebase ID token:', error)
+  }
+
+  return headers
+}
+
+/**
+ * HTTP client wrapper that injects Firebase Auth Bearer token and handles 401/403 responses.
+ */
+async function authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const authHeaders = await getAuthHeaders()
+
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...authHeaders,
+      ...(options.headers || {})
+    }
+  })
+
+  if (response.status === 401 || response.status === 403) {
+    console.warn(`[Authentication Error] ${response.status} returned for ${url}. Request requires a valid Firebase Bearer token.`)
+  }
+
+  return response
+}
+
+/**
  * GET /api/incidents - Fetch list of incidents with optional filters
  */
 export async function getIncidents(filters?: {
@@ -108,16 +153,13 @@ export async function getIncidents(filters?: {
   if (filters?.priority) params.append('priority', filters.priority)
 
   const queryString = params.toString() ? `?${params.toString()}` : ''
-  const response = await fetch(`${API_BASE_URL}/incidents${queryString}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json'
-    }
+  const response = await authenticatedFetch(`${API_BASE_URL}/incidents${queryString}`, {
+    method: 'GET'
   })
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `Failed to fetch incidents (${response.status})`)
+    throw new Error(errorData.error || errorData.message || `Failed to fetch incidents (${response.status})`)
   }
 
   const data = await response.json()
@@ -128,16 +170,13 @@ export async function getIncidents(filters?: {
  * GET /api/incidents/:id - Fetch single incident by ID or incident_number
  */
 export async function getIncidentById(id: string | number): Promise<IncidentItem> {
-  const response = await fetch(`${API_BASE_URL}/incidents/${id}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json'
-    }
+  const response = await authenticatedFetch(`${API_BASE_URL}/incidents/${id}`, {
+    method: 'GET'
   })
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `Failed to fetch incident ${id}`)
+    throw new Error(errorData.error || errorData.message || `Failed to fetch incident ${id}`)
   }
 
   const data = await response.json()
@@ -164,17 +203,14 @@ export async function createIncident(data: {
     reported_by: data.reported_by || 1
   }
 
-  const response = await fetch(`${API_BASE_URL}/incidents`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/incidents`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
     body: JSON.stringify(payload)
   })
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || 'Failed to create incident ticket')
+    throw new Error(errorData.error || errorData.message || 'Failed to create incident ticket')
   }
 
   const createdData = await response.json()
@@ -201,17 +237,14 @@ export async function updateIncidentStatus(
   if (assignedTo !== undefined) payload.assigned_to = assignedTo
   if (changedBy !== undefined) payload.changed_by = changedBy
 
-  const response = await fetch(`${API_BASE_URL}/incidents/${id}/status`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/incidents/${id}/status`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json'
-    },
     body: JSON.stringify(payload)
   })
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `Failed to update status for incident ${id}`)
+    throw new Error(errorData.error || errorData.message || `Failed to update status for incident ${id}`)
   }
 
   const updatedData = await response.json()
@@ -226,17 +259,14 @@ export async function addIncidentComment(
   comment: string,
   userId: number = 1
 ): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}/incidents/${id}/comments`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/incidents/${id}/comments`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
     body: JSON.stringify({ comment, user_id: userId })
   })
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || 'Failed to post comment')
+    throw new Error(errorData.error || errorData.message || 'Failed to post comment')
   }
 
   return await response.json()
@@ -246,16 +276,13 @@ export async function addIncidentComment(
  * GET /api/analytics - Fetch high-level operational metrics
  */
 export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
-  const response = await fetch(`${API_BASE_URL}/analytics`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json'
-    }
+  const response = await authenticatedFetch(`${API_BASE_URL}/analytics`, {
+    method: 'GET'
   })
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || 'Failed to fetch analytics telemetry')
+    throw new Error(errorData.error || errorData.message || 'Failed to fetch analytics telemetry')
   }
 
   const raw = await response.json()
