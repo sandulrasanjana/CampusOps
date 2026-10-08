@@ -1,7 +1,8 @@
 import type { IncidentItem } from '../components/ReportIncidentPage'
 import { auth } from '../firebase'
 
-const API_BASE_URL = 'http://localhost:5000/api'
+const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const API_BASE_URL = RAW_API_URL.endsWith('/api') ? RAW_API_URL : `${RAW_API_URL.replace(/\/$/, '')}/api`
 
 export interface AnalyticsSummary {
   totalIncidents: number
@@ -104,12 +105,18 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   }
 
   try {
+    if (auth.authStateReady) {
+      await auth.authStateReady()
+    }
     const user = auth.currentUser
     if (user) {
-      const token = await user.getIdToken()
+      const token = await user.getIdToken(true) // Force token refresh
+      console.log('Dispatching request with token:', token ? 'Token exists' : 'NO TOKEN')
       if (token) {
         headers['Authorization'] = `Bearer ${token}`
       }
+    } else {
+      console.log('Dispatching request with token: NO TOKEN')
     }
   } catch (error) {
     console.warn('Failed to retrieve Firebase ID token:', error)
@@ -123,6 +130,11 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
  */
 async function authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const authHeaders = await getAuthHeaders()
+
+  if (!authHeaders['Authorization']) {
+    console.warn('No active Firebase user token found. Skipping request to:', url)
+    throw new Error('Unauthenticated: User is not logged in or token unavailable.')
+  }
 
   const response = await fetch(url, {
     ...options,

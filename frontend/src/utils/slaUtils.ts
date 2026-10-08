@@ -39,3 +39,20 @@ export function isSlaWarningOrBreach(incident: IncidentItem): boolean {
 export function getActiveSlaBreaches(incidents: IncidentItem[]): IncidentItem[] {
   return (incidents || []).filter((incident) => isSlaWarningOrBreach(incident))
 }
+
+/**
+ * Calculates whether an incident has breached its SLA target based on creation date, SLA hours, and current time.
+ */
+export function calculateSLABreach(
+  createdAt: string | Date,
+  slaHours: number,
+  now: Date = new Date()
+): { isBreached: boolean; remainingMs: number } {
+  const created = new Date(createdAt).getTime()
+  const deadline = created + slaHours * 60 * 60 * 1000
+  const remainingMs = deadline - now.getTime()
+  return {
+    isBreached: remainingMs <= 0,
+    remainingMs
+  }
+}

@@ -7,29 +7,60 @@ const { verifyToken } = require('./src/middleware/authMiddleware');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// Middleware & CORS configuration reading process.env.FRONTEND_URL
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',').map((url) => url.trim())
+  : ['http://localhost:5173', 'http://localhost:3000'];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(null, true);
+    },
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    credentials: true
+  })
+);
 app.use(express.json());
 
-// 1. Health Check Endpoint (Public)
-app.get('/api/health', async (req, res) => {
+// 1. Health Check Endpoint (Public - No Auth Required)
+const handleHealthCheck = async (req, res) => {
   try {
-    const result = await db.query('SELECT NOW() as current_time');
-    res.json({
-      status: 'OK',
+    let dbStatus = 'connected';
+    let dbTime = null;
+    try {
+      const result = await db.query('SELECT NOW() as current_time');
+      dbTime = result.rows[0]?.current_time;
+    } catch (dbErr) {
+      dbStatus = 'disconnected';
+      console.warn('Health check DB warning:', dbErr.message);
+    }
+
+    res.status(200).json({
+      status: 'UP',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development',
       message: 'CampusOps Backend API is running',
-      dbTime: result.rows[0].current_time
+      database: dbStatus,
+      dbTime
     });
   } catch (error) {
-    const errDetails = error.message || String(error) || 'Connection timed out or failed';
-    console.error('Health check database error:', errDetails);
     res.status(500).json({
-      status: 'ERROR',
-      message: 'Database connection error',
-      error: errDetails
+      status: 'DOWN',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development',
+      error: error.message
     });
   }
-});
+};
+
+app.get('/api/health', handleHealthCheck);
+app.get('/health', handleHealthCheck);
 
 // Protect sensitive API routes with Firebase ID token verification
 app.use('/api/incidents', verifyToken);

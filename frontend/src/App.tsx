@@ -86,12 +86,15 @@ function App() {
   }
 
   useEffect(() => {
-    fetchIncidentsData()
-    const unsubscribe = onAuthStateChanged(auth, (authUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
       if (authUser) {
         setFirebaseUser(authUser)
         const nameFromEmail = authUser.email ? authUser.email.split('@')[0] : 'Sandul'
         setUser(nameFromEmail)
+        await fetchIncidentsData()
+      } else {
+        setFirebaseUser(null)
+        setLoadingIncidents(false)
       }
     })
     return () => unsubscribe()
