@@ -1,0 +1,15 @@
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Local databases and backups
+*.db
+*.db-*
+*-backup.db
+
+# Dependencies
+node_modules/
+
+# Logs
+npm-debug.log*

@@ -29,7 +29,7 @@ if (connectionString) {
 function initSqlite() {
   if (sqliteDb) return sqliteDb;
 
-  const dbPath = path.join(__dirname, 'campusops.db');
+  const dbPath = process.env.SQLITE_DB_PATH || path.join(__dirname, 'campusops.db');
   console.log(`[CampusOps DB] Initializing local SQLite database at ${dbPath}`);
 
   sqliteDb = new sqlite3.Database(dbPath);
