@@ -1,0 +1,46 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: campusops-backend
+    environment:
+      NODE_ENV: production
+      PORT: "5000"
+      SQLITE_DB_PATH: /data/campusops.db
+      FRONTEND_URL: http://localhost:8081
+      FIREBASE_PROJECT_ID: campusops-26ed0
+    volumes:
+      - campusops-data:/data
+    ports:
+      - "5001:5000"
+    networks:
+      - campusops-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:?Set Firebase build variables first}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:?Set Firebase build variables first}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID:?Set Firebase build variables first}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET:?Set Firebase build variables first}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID:?Set Firebase build variables first}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:?Set Firebase build variables first}
+        VITE_FIREBASE_MEASUREMENT_ID: ${VITE_FIREBASE_MEASUREMENT_ID:-}
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+    networks:
+      - campusops-network
+    restart: unless-stopped
+
+volumes:
+  campusops-data:
+    external: true
+
+networks:
+  campusops-network:
+    external: true

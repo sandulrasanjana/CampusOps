@@ -12,7 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY package.json package-lock.json ./
 
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --fetch-retries=5 --fetch-timeout=600000 \
+    && npm_config_build_from_source=true npm rebuild sqlite3 --fetch-retries=5 --fetch-timeout=600000
 
 COPY . .
 
