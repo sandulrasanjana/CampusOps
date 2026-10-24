@@ -4,20 +4,70 @@ import { auth } from '../firebase'
 const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 const API_BASE_URL = RAW_API_URL.endsWith('/api') ? RAW_API_URL : `${RAW_API_URL.replace(/\/$/, '')}/api`
 
+export interface AnalyticsStatusItem {
+  status?: string
+  count?: number | string
+  'COUNT(*)'?: number | string
+}
+
 export interface AnalyticsSummary {
   totalIncidents: number
   openIncidents: number
   inProgressIncidents: number
   resolvedIncidents: number
-  byStatus: Array<{ status: string; count: number | string; 'COUNT(*)': number | string }>
+  byStatus: AnalyticsStatusItem[]
   byPriority: Array<{ priority: string; count: number | string; 'COUNT(*)': number | string }>
   byCategory: Array<{ category: string; count: number | string; 'COUNT(*)': number | string }>
+}
+
+export interface BackendComment {
+  id?: number | string
+  incident_id?: number | string
+  user_id?: number
+  author_name?: string
+  author_role?: string
+  comment?: string
+  text?: string
+  created_at?: string
+}
+
+export interface BackendIncident {
+  id?: number | string
+  incident_number?: string
+  title?: string
+  description?: string
+  category?: IncidentItem['category'] | string
+  location?: string
+  priority?: string
+  status?: string
+  reported_by?: number
+  reporter_name?: string
+  reporter_email?: string
+  assigned_to?: number | null
+  assigned_technician_name?: string
+  assigned_technician_email?: string
+  created_at?: string
+  updated_at?: string
+  comments?: BackendComment[]
+}
+
+export interface UpdateIncidentStatusPayload {
+  status: string
+  assigned_to?: number
+  changed_by?: number
+}
+
+export interface RawAnalyticsResponse {
+  totalIncidents?: number
+  byStatus?: AnalyticsStatusItem[]
+  byPriority?: AnalyticsSummary['byPriority']
+  byCategory?: AnalyticsSummary['byCategory']
 }
 
 /**
  * Normalizes status strings from backend/DB into UI-friendly formats
  */
-export function normalizeStatus(status: string): IncidentItem['status'] {
+export function normalizeStatus(status?: string): IncidentItem['status'] {
   if (!status) return 'Open'
   const upper = status.trim().toUpperCase()
   if (upper === 'REPORTED' || upper === 'OPEN') return 'Open'
@@ -30,7 +80,7 @@ export function normalizeStatus(status: string): IncidentItem['status'] {
 /**
  * Normalizes priority strings from backend/DB into UI-friendly formats
  */
-export function normalizePriority(priority: string): IncidentItem['priority'] {
+export function normalizePriority(priority?: string): IncidentItem['priority'] {
   if (!priority) return 'Medium'
   const upper = priority.trim().toUpperCase()
   if (upper === 'HIGH') return 'High'
@@ -43,7 +93,7 @@ export function normalizePriority(priority: string): IncidentItem['priority'] {
 /**
  * Normalizes backend DB incident format into frontend IncidentItem model
  */
-export function transformBackendIncident(raw: any): IncidentItem {
+export function transformBackendIncident(raw: BackendIncident): IncidentItem {
   const formattedDate = raw.created_at
     ? new Date(raw.created_at).toLocaleString('en-US', {
         month: 'short',
@@ -57,7 +107,7 @@ export function transformBackendIncident(raw: any): IncidentItem {
   const normalizedPr = normalizePriority(raw.priority)
 
   const comments = Array.isArray(raw.comments)
-    ? raw.comments.map((c: any) => ({
+    ? raw.comments.map((c: BackendComment) => ({
         id: String(c.id || `c_${Math.random()}`),
         author: c.author_name || 'System',
         role: c.author_role || 'User',
@@ -76,7 +126,7 @@ export function transformBackendIncident(raw: any): IncidentItem {
   return {
     id: raw.incident_number || (typeof raw.id === 'string' && raw.id.startsWith('INC-') ? raw.id : `INC-${raw.id}`),
     title: raw.title || 'Untitled Incident',
-    category: raw.category || 'IT Support',
+    category: (raw.category as IncidentItem['category']) || 'IT Support',
     priority: normalizedPr,
     status: normalizedSt,
     location: raw.location || 'Main Campus',
@@ -118,7 +168,7 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
     } else {
       console.log('Dispatching request with token: NO TOKEN')
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.warn('Failed to retrieve Firebase ID token:', error)
   }
 
@@ -245,7 +295,7 @@ export async function updateIncidentStatus(
   else if (upper === 'RESOLVED') backendStatus = 'RESOLVED'
   else if (upper === 'CLOSED') backendStatus = 'CLOSED'
 
-  const payload: any = { status: backendStatus }
+  const payload: UpdateIncidentStatusPayload = { status: backendStatus }
   if (assignedTo !== undefined) payload.assigned_to = assignedTo
   if (changedBy !== undefined) payload.changed_by = changedBy
 
@@ -259,7 +309,7 @@ export async function updateIncidentStatus(
     throw new Error(errorData.error || errorData.message || `Failed to update status for incident ${id}`)
   }
 
-  const updatedData = await response.json()
+  const updatedData: BackendIncident = await response.json()
   return transformBackendIncident(updatedData)
 }
 
@@ -270,7 +320,7 @@ export async function addIncidentComment(
   id: string | number,
   comment: string,
   userId: number = 1
-): Promise<any> {
+): Promise<BackendComment> {
   const response = await authenticatedFetch(`${API_BASE_URL}/incidents/${id}/comments`, {
     method: 'POST',
     body: JSON.stringify({ comment, user_id: userId })
@@ -281,7 +331,7 @@ export async function addIncidentComment(
     throw new Error(errorData.error || errorData.message || 'Failed to post comment')
   }
 
-  return await response.json()
+  return (await response.json()) as BackendComment
 }
 
 /**
@@ -297,15 +347,15 @@ export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
     throw new Error(errorData.error || errorData.message || 'Failed to fetch analytics telemetry')
   }
 
-  const raw = await response.json()
+  const raw: RawAnalyticsResponse = await response.json()
 
   let openCount = 0
   let inProgressCount = 0
   let resolvedCount = 0
 
   if (Array.isArray(raw.byStatus)) {
-    raw.byStatus.forEach((item: any) => {
-      const cnt = parseInt(item.count || item['COUNT(*)'] || '0', 10)
+    raw.byStatus.forEach((item: AnalyticsStatusItem) => {
+      const cnt = parseInt(String(item.count || item['COUNT(*)'] || '0'), 10)
       const st = normalizeStatus(item.status)
       if (st === 'Open') openCount += cnt
       else if (st === 'In Progress') inProgressCount += cnt

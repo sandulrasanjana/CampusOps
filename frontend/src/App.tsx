@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import logoImg from './assets/logo.png'
 import {
   LayoutGrid,
@@ -54,6 +54,22 @@ export type ViewType =
   | 'admin-staff'
   | 'admin-analytics'
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string') {
+      return message
+    }
+  }
+  return 'An unknown error occurred'
+}
+
 function App() {
   const [currentView, setCurrentView] = useState<ViewType | 'login'>('login')
   const [selectedTicketId, setSelectedTicketId] = useState<string | undefined>(undefined)
@@ -68,7 +84,7 @@ function App() {
   const [loadingIncidents, setLoadingIncidents] = useState<boolean>(true)
   const [apiError, setApiError] = useState<string | null>(null)
 
-  const fetchIncidentsData = async () => {
+  const fetchIncidentsData = useCallback(async () => {
     try {
       setLoadingIncidents(true)
       setApiError(null)
@@ -77,13 +93,13 @@ function App() {
       if (data.length > 0 && !selectedTicketId) {
         setSelectedTicketId(data[0].id)
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load incidents from API:', err)
-      setApiError(err.message || 'Unable to connect to backend server')
+      setApiError(getErrorMessage(err) || 'Unable to connect to backend server')
     } finally {
       setLoadingIncidents(false)
     }
-  }
+  }, [selectedTicketId])
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
@@ -98,7 +114,7 @@ function App() {
       }
     })
     return () => unsubscribe()
-  }, [])
+  }, [fetchIncidentsData])
 
   const handleNavigate = (view: ViewType | 'login', ticketId?: string) => {
     if (ticketId) {
@@ -149,9 +165,9 @@ function App() {
     try {
       await apiUpdateIncidentStatus(ticketId, newStatus)
       await fetchIncidentsData()
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error updating status on server:', err)
-      setApiError(`Failed to update ticket status: ${err.message}`)
+      setApiError(`Failed to update ticket status: ${getErrorMessage(err)}`)
     }
   }
 
@@ -159,9 +175,9 @@ function App() {
     try {
       await apiUpdateIncidentStatus(ticketId, 'In Progress', 2)
       await fetchIncidentsData()
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error claiming ticket:', err)
-      setApiError(`Failed to claim ticket: ${err.message}`)
+      setApiError(`Failed to claim ticket: ${getErrorMessage(err)}`)
     }
   }
 
@@ -170,7 +186,7 @@ function App() {
       const formattedText = isInternal ? `[INTERNAL NOTE]: ${commentText}` : commentText
       await apiAddIncidentComment(ticketId, formattedText)
       await fetchIncidentsData()
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error adding comment to backend:', err)
       const now = new Date()
       const timestamp = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })

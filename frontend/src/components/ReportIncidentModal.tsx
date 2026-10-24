@@ -2,19 +2,14 @@ import React, { useState } from 'react'
 import { X, PlusCircle } from 'lucide-react'
 import { createIncident } from '../services/api'
 
-export interface IncidentItem {
-  id: string
-  title: string
-  category: 'IT Support' | 'Facilities' | 'Security'
-  priority: 'High' | 'Medium' | 'Low'
-  status: 'Open' | 'In Progress' | 'Resolved'
-  date: string
-}
+import type { IncidentItem } from './ReportIncidentPage'
+
+export type { IncidentItem }
 
 interface ReportIncidentModalProps {
   isOpen: boolean
   onClose: () => void
-  onAddIncident: (newIncident: any) => void
+  onAddIncident: (newIncident: IncidentItem) => void
 }
 
 export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
@@ -53,9 +48,20 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       setLocation('')
       setDescription('')
       onClose()
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Modal create incident error:', err)
-      setModalError(err.message || 'Failed to submit incident ticket')
+      let message = 'Failed to submit incident ticket'
+      if (err instanceof Error && err.message) {
+        message = err.message
+      } else if (typeof err === 'string') {
+        message = err
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        const msg = (err as { message?: unknown }).message
+        if (typeof msg === 'string' && msg) {
+          message = msg
+        }
+      }
+      setModalError(message)
     } finally {
       setIsSubmitting(false)
     }

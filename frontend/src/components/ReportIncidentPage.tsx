@@ -105,9 +105,20 @@ export const ReportIncidentPage: React.FC<ReportIncidentPageProps> = ({
       setTimeout(() => {
         onNavigate('incidents')
       }, 1200)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Submit incident error:', err)
-      setSubmitError(err.message || 'Failed to report incident. Please try again.')
+      let message = 'Failed to report incident. Please try again.'
+      if (err instanceof Error && err.message) {
+        message = err.message
+      } else if (typeof err === 'string') {
+        message = err
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        const msg = (err as { message?: unknown }).message
+        if (typeof msg === 'string' && msg) {
+          message = msg
+        }
+      }
+      setSubmitError(message)
     } finally {
       setIsSubmitting(false)
     }

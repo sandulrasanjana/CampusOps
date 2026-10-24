@@ -18,20 +18,19 @@ export const AdminAnalyticsPage: React.FC<AdminAnalyticsPageProps> = ({
   incidents: propIncidents
 }) => {
   const [fetchedIncidents, setFetchedIncidents] = useState<IncidentItem[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(!propIncidents || propIncidents.length === 0)
   const [error, setError] = useState<string | null>(null)
 
   // Use props if provided, otherwise fallback to fetching from API
   useEffect(() => {
     let isMounted = true
     if (!propIncidents || propIncidents.length === 0) {
-      setLoading(true)
       getIncidents()
         .then((data) => {
           if (isMounted) setFetchedIncidents(data)
         })
-        .catch((err) => {
-          if (isMounted) setError(err.message || 'Failed to load telemetry data')
+        .catch((err: unknown) => {
+          if (isMounted) setError(err instanceof Error ? err.message : 'Failed to load telemetry data')
         })
         .finally(() => {
           if (isMounted) setLoading(false)
