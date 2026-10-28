@@ -59,7 +59,7 @@ jobs:
         working-directory: backend
         run: npm test
 
-backend-image-security:
+  backend-image-security:
     name: Backend Docker Security Scan
     runs-on: ubuntu-latest
     permissions:
