@@ -62,6 +62,23 @@ const handleHealthCheck = async (req, res) => {
 app.get('/api/health', handleHealthCheck);
 app.get('/health', handleHealthCheck);
 
+// Kubernetes Readiness Check
+app.get('/ready', async (req, res) => {
+  try {
+    await db.query('SELECT 1');
+
+    res.status(200).json({
+      status: 'READY',
+      database: 'connected'
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'NOT_READY',
+      database: 'disconnected'
+    });
+  }
+});
+
 // Protect sensitive API routes with Firebase ID token verification
 app.use('/api/incidents', verifyToken);
 app.use('/api/users', verifyToken);
