@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 const db = require('./db');
 const { verifyToken } = require('./src/middleware/authMiddleware');
+const createReadinessHandler = require('./readinessHandler');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -63,21 +64,7 @@ app.get('/api/health', handleHealthCheck);
 app.get('/health', handleHealthCheck);
 
 // Kubernetes Readiness Check
-app.get('/ready', async (req, res) => {
-  try {
-    await db.query('SELECT 1');
-
-    res.status(200).json({
-      status: 'READY',
-      database: 'connected'
-    });
-  } catch (error) {
-    res.status(503).json({
-      status: 'NOT_READY',
-      database: 'disconnected'
-    });
-  }
-});
+app.get('/ready', createReadinessHandler(db));
 
 // Protect sensitive API routes with Firebase ID token verification
 app.use('/api/incidents', verifyToken);

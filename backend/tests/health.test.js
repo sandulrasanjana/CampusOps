@@ -57,3 +57,64 @@ describe('Backend Health Check API', () => {
     assert.equal(body.status, 'UP');
   });
 });
+describe('Backend Readiness Check API', () => {
+  const createReadinessHandler = require('../readinessHandler');
+
+  test('returns 200 READY when database is connected', async () => {
+    const mockDb = {
+      query: async () => ({ rows: [{ result: 1 }] })
+    };
+
+    const handler = createReadinessHandler(mockDb);
+
+    const req = {};
+    const res = {
+      statusCode: 200,
+      body: null,
+      status(code) {
+        this.statusCode = code;
+        return this;
+      },
+      json(data) {
+        this.body = data;
+        return this;
+      }
+    };
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.status, 'READY');
+    assert.equal(res.body.database, 'connected');
+  });
+
+  test('returns 503 NOT_READY when database is disconnected', async () => {
+    const mockDb = {
+      query: async () => {
+        throw new Error('Database connection failed');
+      }
+    };
+
+    const handler = createReadinessHandler(mockDb);
+
+    const req = {};
+    const res = {
+      statusCode: 200,
+      body: null,
+      status(code) {
+        this.statusCode = code;
+        return this;
+      },
+      json(data) {
+        this.body = data;
+        return this;
+      }
+    };
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.body.status, 'NOT_READY');
+    assert.equal(res.body.database, 'disconnected');
+  });
+});
